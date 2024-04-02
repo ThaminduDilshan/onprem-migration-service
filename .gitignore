@@ -1,3 +1,6 @@
 target
 generated
 Config.toml
+
+# Temporary ignore the resources directory
+resources
