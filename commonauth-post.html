@@ -61,7 +61,12 @@
 
             // Append greeting message to username
             var greetingElement = document.getElementById('greeting');
-            greetingElement.innerText = 'Hello There!';
+
+            if (username) {
+                greetingElement.innerText = 'Hello ' + username + ' !';
+            } else {
+                greetingElement.innerText = 'Hello There!';
+            }
 
             var secondsLeft = 10; // Set the countdown duration in seconds
 
