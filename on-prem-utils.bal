@@ -19,7 +19,7 @@ isolated function authenticateUser(User user) returns error? {
     });
 
     // Authenticate the user by invoking the on-premise server.
-    http:Response response = check onPremClient->get(onPremServerUrl);
+    http:Response response = check onPremClient->get("/scim2/Me");
 
     // Check if the authentication was unsuccessful.
     if response.statusCode != http:STATUS_OK {
