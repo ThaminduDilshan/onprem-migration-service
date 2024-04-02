@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Form Submission</title>
+    <style>
+        /* CSS for the spinner */
+        .spinner {
+            border: 16px solid #f3f3f3; /* Light grey */
+            border-top: 16px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            margin-top: 50px;
+        }
+        
+        /* CSS for the countdown timer */
+        .countdown {
+            font-size: 48px;
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        /* CSS for the greeting */
+        .greeting {
+            font-size: 30px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script>
+        window.onload = function() {
+            // Read the promptID query parameter from the window location
+            var urlParams = new URLSearchParams(window.location.search);
+            var promptID = urlParams.get('promptId');
+            var username = urlParams.get('username');
+
+            // Add the promptID value as a hidden input field in the form
+            var form = document.getElementById('myForm');
+            if (promptID) {
+                var promptIDInput = document.createElement('input');
+                promptIDInput.type = 'hidden';
+                promptIDInput.name = 'promptId';
+                promptIDInput.value = promptID;
+                form.appendChild(promptIDInput);
+            }
+
+            // Display the spinner
+            var spinnerElement = document.getElementById('spinner');
+            // spinnerElement.style.display = 'block';
+
+            var countdownElement = document.getElementById('countdown');
+            var messageElement = document.getElementById('message');
+
+            // Append greeting message to username
+            var greetingElement = document.getElementById('greeting');
+            greetingElement.innerText = 'Hello There!';
+
+            var secondsLeft = 10; // Set the countdown duration in seconds
+
+            // Start the countdown 
+            var countdownInterval = setInterval(function() {
+                secondsLeft--;
+                countdownElement.innerText = secondsLeft;
+
+                // Check if the countdown is complete
+                if (secondsLeft <= 0) {
+                    clearInterval(countdownInterval); // Stop the countdown
+                    spinnerElement.style.display = 'none'; // Hide the spinner
+                    countdownElement.style.display = 'none'; // Hide the countdown
+                    messageElement.style.display = 'none'; // Hide the message
+                    greetingElement.style.display = 'none'; // Hide the greeting
+                    form.submit(); // Submit the form
+                }
+            }, 1000);
+        };
+    </script>
+</head>
+<body>
+    <!-- Spinner -->
+    <div id="spinner" class="spinner"></div>
+
+    <!-- Add a message saying please wait -->
+    <div id="greeting" class="greeting"></div>
+    <div id="message" class="greeting">Please wait until we setup your environment...</div>
+    
+    <!-- Countdown Timer -->
+    <div id="countdown" class="countdown"></div>
+
+    <form id="myForm" action="https://api.asgardeo.io/t/krustykrab/commonauth" method="post">
+        <input type="hidden" id="promptResp" name="promptResp" value="true">
+        <input type="hidden" id="customClaim" name="customClaim" value="PickedFromExternal">
+    </form>
+</body>
+</html>
