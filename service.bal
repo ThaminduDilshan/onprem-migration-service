@@ -15,7 +15,17 @@ service / on new http:Listener(9090) {
             check authenticateUser(user.cloneReadOnly());
 
             // Wait for the response of Asgardeo invocation.
-            AsgardeoUser asgardeoUser = check wait asgardeoUserFuture;
+            AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
+
+            if asgardeoUser is error {
+                log:printError(string `Error occurred while retrieving user from Asgardeo for the user: ${user.id}.`, asgardeoUser);
+
+                return <http:InternalServerError> {
+                    body: {
+                        message: asgardeoUser.message()
+                    }
+                };
+            }
 
             // Validate the username.
             if asgardeoUser.username !== user.username {
