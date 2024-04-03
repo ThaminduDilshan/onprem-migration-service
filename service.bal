@@ -3,7 +3,7 @@ import ballerina/log;
 
 service / on new http:Listener(9090) {
 
-    resource function post migrate\-password(User user) returns http:Ok|http:BadRequest|http:InternalServerError {
+    resource function post migrate\-password(User user) returns http:Ok|http:BadRequest|http:Unauthorized|http:InternalServerError {
 
         do {
             log:printInfo(string `Start password migration for the user: ${user.id}.`);
@@ -12,13 +12,34 @@ service / on new http:Listener(9090) {
             future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
 
             // Try to authenticate the user with on prem server.
-            check authenticateUser(user.cloneReadOnly());
+            error? authStatus = authenticateUser(user.cloneReadOnly());
+
+            if authStatus is error {
+                log:printError("Authentication failed with on prem server.");
+
+                if authStatus.message() == "Invalid credentials" {
+                    return <http:Unauthorized> {
+                        body: {
+                            message: "Invalid credentials!"
+                        }
+                    };
+                } else {
+                    return <http:InternalServerError> {
+                        body: {
+                            message: authStatus.message()
+                        }
+                    };
+                }
+            }
+
+            log:printInfo("User authenticated with on prem server.");
 
             // Wait for the response of Asgardeo invocation.
             AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
+            log:printInfo("User retrieved from Asgardeo.");
 
             if asgardeoUser is error {
-                log:printError(string `Error occurred while retrieving user from Asgardeo for the user: ${user.id}.`, asgardeoUser);
+                log:printError("Error occurred while retrieving user from Asgardeo.", asgardeoUser);
 
                 return <http:InternalServerError> {
                     body: {
@@ -37,6 +58,8 @@ service / on new http:Listener(9090) {
                     }
                 };
             }
+
+            log:printInfo("Username validated successfully.");
 
             // Try to change the password of the Asgardeo user.
             check changeUserPassword(asgardeoUser, user.password);

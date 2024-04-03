@@ -26,20 +26,25 @@ final http:Client asgardeoClient = check new (asgardeoUrl, {
 isolated function getAsgardeoUser(string id) returns AsgardeoUser|error {
 
     // Retrieve user from the Asgardeo server given the user id.
-    AsgardeoUserResponse|error response = asgardeoClient->get("/scim2/Users/" + id);
+    json|error jsonResponse = asgardeoClient->get("/scim2/Users/" + id);
 
     // Handle error response.
-    if response is error {
-        log:printError(string `Error while fetching Asgardeo user for the id: ${id}.`, response);
+    if jsonResponse is error {
+        log:printError(string `Error while fetching Asgardeo user for the id: ${id}.`, jsonResponse);
         return error("Error while fetching the user.");
     }
-    if response.username == "" {
+
+    AsgardeoUserResponse response = check jsonResponse.cloneWithType(AsgardeoUserResponse);
+
+    if response.userName == "" {
         log:printError(string `A user not found for the id: ${id}.`);
         return error("User not found.");
     }
 
     // Extract the username from the response.
-    string username = regex:split(response.username, "/")[1];
+    string username = regex:split(response.userName, "/")[1];
+
+    log:printInfo("Successfully retrieved the username from Asgardeo.");
 
     // Return the user object.
     return {
@@ -76,10 +81,17 @@ isolated function changeUserPassword(AsgardeoUser asgardeoUser, string password)
         ]
     };
 
+    log:printInfo("Changing the password of the user: " + asgardeoUser.id);
+
     // Send the patch request to Asgardeo.
     http:Request request = new;
     request.setPayload(requestBody, "application/json");
-    http:Response response = check asgardeoClient->patch("/scim2/Users/" + asgardeoUser.id, request);
+    http:Response|error response = check asgardeoClient->patch("/scim2/Users/" + asgardeoUser.id, request);
+
+    if response is error {
+        log:printError(string `Error while changing password of the user: ${asgardeoUser.id}.`, response);
+        return error("Error while changing the password.");
+    }
 
     // Handle error.
     if response.statusCode != http:STATUS_OK {

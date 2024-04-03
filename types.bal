@@ -17,7 +17,7 @@ type AsgardeoAppConfig readonly & record {|
 
 type AsgardeoUserResponse record {|
     string id;
-    string username;
+    string userName;
     string[] emails;
     json...;
 |};

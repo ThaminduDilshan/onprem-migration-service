@@ -25,7 +25,10 @@ isolated function authenticateUser(User user) returns error? {
     http:Response response = check onPremClient->get("/scim2/Me");
 
     // Check if the authentication was unsuccessful.
-    if response.statusCode != http:STATUS_OK {
+    if response.statusCode == http:STATUS_UNAUTHORIZED {
+        log:printError(string `Authentication failed for the user: ${user.id}. Invalid credentials`);
+        return error("Invalid credentials");
+    } else if response.statusCode != http:STATUS_OK {
         log:printError(string `Authentication failed for the user: ${user.id}.`);
         return error("Authentication failed");
     }
