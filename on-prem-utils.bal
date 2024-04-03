@@ -15,6 +15,9 @@ isolated function authenticateUser(User user) returns error? {
         auth: {
             username: user.username,
             password: user.password
+        },
+        secureSocket: {
+            enable: false
         }
     });
 
