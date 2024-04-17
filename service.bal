@@ -3,10 +3,10 @@ import ballerina/log;
 
 service / on new http:Listener(9090) {
 
-    resource function post migrate\-password(User user) returns http:Ok|http:BadRequest|http:Unauthorized|http:InternalServerError {
+    resource function post authenticate(User user) returns http:Ok|http:BadRequest|http:Unauthorized|http:InternalServerError {
 
         do {
-            log:printInfo(string `Start password migration for the user: ${user.id}.`);
+            log:printInfo(string `Received on-prem authentication request for the user: ${user.id}.`);
 
             // Retrieve user from Asgardeo for the given user id.
             future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
@@ -60,12 +60,17 @@ service / on new http:Listener(9090) {
             }
 
             log:printInfo("Username validated successfully.");
+            log:printInfo(string `On prem authentication successful for the user: ${user.id}.`);
 
-            // Try to change the password of the Asgardeo user.
-            check changeUserPassword(asgardeoUser, user.password);
+            // Return success response to Asgardeo.
+            return <http:Ok> {
+                body: {
+                    message: "Successful"
+                }
+            };
 
         } on fail error err {
-            log:printError(string `Error occurred while migrating password for the user: ${user.id}.`, err);
+            log:printError(string `Error occurred while authenticating the user: ${user.id}.`, err);
 
             return <http:InternalServerError> {
                 body: {
@@ -73,13 +78,5 @@ service / on new http:Listener(9090) {
                 }
             };
         }
-
-        log:printInfo(string `Password migrated successfully for the user: ${user.id}.`);
-
-        return <http:Ok> {
-            body: {
-                message: "Password migrated successfully!"
-            }
-        };
     }
 }
