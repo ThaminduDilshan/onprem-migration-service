@@ -8,8 +8,8 @@ service / on new http:Listener(9090) {
         do {
             log:printInfo(string `Received on-prem authentication request for the user: ${user.id}.`);
 
-            // Retrieve user from Asgardeo for the given user id.
-            future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
+            // // Retrieve user from Asgardeo for the given user id.
+            // future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
 
             // Try to authenticate the user with on prem server.
             error? authStatus = authenticateUser(user.cloneReadOnly());
@@ -34,32 +34,32 @@ service / on new http:Listener(9090) {
 
             log:printInfo("User authenticated with on prem server.");
 
-            // Wait for the response of Asgardeo invocation.
-            AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
-            log:printInfo("User retrieved from Asgardeo.");
+            // // Wait for the response of Asgardeo invocation.
+            // AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
+            // log:printInfo("User retrieved from Asgardeo.");
 
-            if asgardeoUser is error {
-                log:printError("Error occurred while retrieving user from Asgardeo.", asgardeoUser);
+            // if asgardeoUser is error {
+            //     log:printError("Error occurred while retrieving user from Asgardeo.", asgardeoUser);
 
-                return <http:InternalServerError> {
-                    body: {
-                        message: asgardeoUser.message()
-                    }
-                };
-            }
+            //     return <http:InternalServerError> {
+            //         body: {
+            //             message: asgardeoUser.message()
+            //         }
+            //     };
+            // }
 
-            // Validate the username.
-            if asgardeoUser.username !== user.username {
-                log:printError(string `Invalid username provided for the user: ${user.id}.`);
+            // // Validate the username.
+            // if asgardeoUser.username !== user.username {
+            //     log:printError(string `Invalid username provided for the user: ${user.id}.`);
 
-                return <http:BadRequest> {
-                    body: {
-                        message: "Invalid username!"
-                    }
-                };
-            }
+            //     return <http:BadRequest> {
+            //         body: {
+            //             message: "Invalid username!"
+            //         }
+            //     };
+            // }
 
-            log:printInfo("Username validated successfully.");
+            // log:printInfo("Username validated successfully.");
             log:printInfo(string `On prem authentication successful for the user: ${user.id}.`);
 
             // Return success response to Asgardeo.
