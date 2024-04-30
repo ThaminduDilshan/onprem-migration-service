@@ -1,6 +1,6 @@
 import ballerina/http;
-import ballerina/log;
 import ballerina/lang.runtime;
+import ballerina/log;
 import ballerina/uuid;
 
 isolated map<AuthenticationContext> userAuthContextMap = {};
@@ -12,7 +12,7 @@ isolated function pushToContext(string contextId, AuthenticationContext context)
     }
 }
 
-isolated  function isContextExists(string contextId) returns boolean {
+isolated function isContextExists(string contextId) returns boolean {
 
     lock {
         return userAuthContextMap.hasKey(contextId);
@@ -39,7 +39,7 @@ service / on new http:Listener(9090) {
             future<error?> authStatusFuture = start authenticateUser(user.cloneReadOnly());
 
             // Return request received response to Asgardeo.
-            check caller->respond(<http:Ok> {
+            check caller->respond(<http:Ok>{
                 body: {
                     message: "Received",
                     contextId: contextId
@@ -121,7 +121,10 @@ service / on new http:Listener(9090) {
         }
     }
 
-    resource function get authentication\-status(string contextId, string username) returns http:Ok|http:BadRequest {
+    resource function post authentication\-status(AuthenticationStatusRequest authStatus) returns http:Ok|http:BadRequest {
+
+        string contextId = authStatus.contextId;
+        string username = authStatus.username;
 
         log:printInfo(string `Received authentication status check for the context id: ${contextId}.`);
 
@@ -131,7 +134,7 @@ service / on new http:Listener(9090) {
             if (context == null) {
                 log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
 
-                return <http:BadRequest> {
+                return <http:BadRequest>{
                     body: {
                         message: "Invalid context id"
                     }
@@ -143,7 +146,7 @@ service / on new http:Listener(9090) {
             if (context.username == username) {
                 log:printInfo(string `${contextId}: Username validated successfully.`);
 
-                return <http:Ok> {
+                return <http:Ok>{
                     body: {
                         status: context.status,
                         message: context.message
@@ -152,7 +155,7 @@ service / on new http:Listener(9090) {
             } else {
                 log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
 
-                return <http:Ok> {
+                return <http:Ok>{
                     body: {
                         status: "FAILED",
                         message: "Invalid request"
@@ -162,7 +165,7 @@ service / on new http:Listener(9090) {
         } else {
             log:printInfo(string `Authentication status not found for the context id: ${contextId}.`);
 
-            return <http:BadRequest> {
+            return <http:BadRequest>{
                 body: {
                     message: "Invalid context id"
                 }

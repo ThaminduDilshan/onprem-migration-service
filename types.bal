@@ -22,6 +22,11 @@ type AsgardeoUserResponse record {|
     json...;
 |};
 
+type AuthenticationStatusRequest record {|
+    readonly string contextId;
+    readonly string username;
+|};
+
 type AuthenticationContext record {|
     readonly string username;
     readonly string status;
