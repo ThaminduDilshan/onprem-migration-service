@@ -1,84 +1,170 @@
 import ballerina/http;
 import ballerina/log;
 import ballerina/lang.runtime;
+import ballerina/uuid;
+
+isolated map<AuthenticationContext> userAuthContextMap = {};
+
+isolated function pushToContext(string contextId, AuthenticationContext context) {
+
+    lock {
+        userAuthContextMap[contextId] = context;
+    }
+}
+
+isolated  function isContextExists(string contextId) returns boolean {
+
+    lock {
+        return userAuthContextMap.hasKey(contextId);
+    }
+}
+
+isolated function popFromContext(string contextId) returns AuthenticationContext {
+
+    lock {
+        return userAuthContextMap.remove(contextId);
+    }
+}
 
 service / on new http:Listener(9090) {
 
-    resource function post authenticate(User user) returns http:Ok|http:BadRequest|http:Unauthorized|http:InternalServerError {
+    resource function post start\-authentication(http:Caller caller, User user) {
+
+        string contextId = uuid:createType1AsString();
+
+        log:printInfo(string `${contextId}: Received authentication request for the user: ${user.id}.`);
 
         do {
-            log:printInfo(string `Received on-prem authentication request for the user: ${user.id}.`);
+            // Create future to authenticate user with the on prem server.
+            future<error?> authStatusFuture = start authenticateUser(user.cloneReadOnly());
+
+            // Return request received response to Asgardeo.
+            check caller->respond(<http:Ok> {
+                body: {
+                    message: "Received",
+                    contextId: contextId
+                }
+            });
 
             // Add fixed delay temporarily to simulate the delay in the on prem server.
-            runtime:sleep(7);
+            runtime:sleep(1);
 
             // // Retrieve user from Asgardeo for the given user id.
             // future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
 
-            // Try to authenticate the user with on prem server.
-            error? authStatus = authenticateUser(user.cloneReadOnly());
+            // Wait for the response of on prem invocation.
+            error? authStatus = check wait authStatusFuture;
 
             if authStatus is error {
-                log:printError("Authentication failed with on prem server.");
+                log:printInfo(string `${contextId}: Authentication failed with on prem server.`);
 
                 if authStatus.message() == "Invalid credentials" {
-                    return <http:Unauthorized> {
-                        body: {
-                            message: "Invalid credentials!"
-                        }
+                    log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
+
+                    AuthenticationContext context = {
+                        username: user.username,
+                        status: "FAILED",
+                        message: "Invalid credentials"
                     };
+                    pushToContext(contextId, context);
                 } else {
-                    return <http:InternalServerError> {
-                        body: {
-                            message: authStatus.message()
-                        }
+                    log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
+
+                    AuthenticationContext context = {
+                        username: user.username,
+                        status: "FAILED",
+                        message: "Something went wrong"
                     };
+                    pushToContext(contextId, context);
                 }
             }
 
-            log:printInfo("User authenticated with on prem server.");
+            log:printInfo(string `${contextId}: User authenticated with on prem server.`);
 
             // // Wait for the response of Asgardeo invocation.
             // AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
-            // log:printInfo("User retrieved from Asgardeo.");
+            // log:printInfo(string `${contextId}: User retrieved from Asgardeo.`);
 
             // if asgardeoUser is error {
-            //     log:printError("Error occurred while retrieving user from Asgardeo.", asgardeoUser);
+            //     log:printInfo(string `${contextId}: Error occurred while retrieving user from Asgardeo.`, asgardeoUser);
 
-            //     return <http:InternalServerError> {
-            //         body: {
-            //             message: asgardeoUser.message()
-            //         }
-            //     };
+            //     fail error("Something went wrong.");
             // }
 
             // // Validate the username.
             // if asgardeoUser.username !== user.username {
-            //     log:printError(string `Invalid username provided for the user: ${user.id}.`);
+            //     log:printInfo(string `${contextId}: Invalid username provided for the user: ${user.id}.`);
 
-            //     return <http:BadRequest> {
-            //         body: {
-            //             message: "Invalid username!"
-            //         }
-            //     };
+            //     fail error("Invalid username");
             // }
 
-            // log:printInfo("Username validated successfully.");
-            log:printInfo(string `On prem authentication successful for the user: ${user.id}.`);
+            // log:printInfo(string `${contextId}: Username validated successfully.`);
+            log:printInfo(string `${contextId}: On prem authentication successful for the user: ${user.id}.`);
 
-            // Return success response to Asgardeo.
-            return <http:Ok> {
-                body: {
-                    message: "Successful"
-                }
+            // Add successful authentication context to the map.
+            AuthenticationContext context = {
+                username: user.username,
+                status: "SUCCESSFUL",
+                message: "Authenticated successful"
             };
+            pushToContext(contextId, context);
 
         } on fail error err {
             log:printError(string `Error occurred while authenticating the user: ${user.id}.`, err);
 
-            return <http:InternalServerError> {
+            AuthenticationContext context = {
+                username: user.username,
+                status: "FAILED",
+                message: "Internal server error"
+            };
+            pushToContext(contextId, context);
+        }
+    }
+
+    resource function get authentication\-status(string contextId, string username) returns http:Ok|http:BadRequest {
+
+        log:printInfo(string `Received authentication status check for the context id: ${contextId}.`);
+
+        if (isContextExists(contextId)) {
+            AuthenticationContext? context = popFromContext(contextId);
+
+            if (context == null) {
+                log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
+
+                return <http:BadRequest> {
+                    body: {
+                        message: "Invalid context id"
+                    }
+                };
+            }
+
+            log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
+
+            if (context.username == username) {
+                log:printInfo(string `${contextId}: Username validated successfully.`);
+
+                return <http:Ok> {
+                    body: {
+                        status: context.status,
+                        message: context.message
+                    }
+                };
+            } else {
+                log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
+
+                return <http:Ok> {
+                    body: {
+                        status: "FAILED",
+                        message: "Invalid request"
+                    }
+                };
+            }
+        } else {
+            log:printInfo(string `Authentication status not found for the context id: ${contextId}.`);
+
+            return <http:BadRequest> {
                 body: {
-                    message: err.message()
+                    message: "Invalid context id"
                 }
             };
         }

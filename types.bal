@@ -21,3 +21,9 @@ type AsgardeoUserResponse record {|
     string[] emails;
     json...;
 |};
+
+type AuthenticationContext record {|
+    readonly string username;
+    readonly string status;
+    readonly string message?;
+|};
