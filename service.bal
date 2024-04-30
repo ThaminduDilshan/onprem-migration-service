@@ -172,4 +172,27 @@ service / on new http:Listener(9090) {
             };
         }
     }
+
+    resource function get poll\-status(string contextId) returns http:Ok {
+
+        log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
+
+        if (isContextExists(contextId)) {
+            log:printInfo(string `${contextId}: Context found for the status query.`);
+
+            return <http:Ok>{
+                body: {
+                    status: "COMPLETED"
+                }
+            };
+        } else {
+            log:printInfo(string `${contextId}: Context not found for the status query.`);
+
+            return <http:Ok>{
+                body: {
+                    status: "PENDING"
+                }
+            };
+        }
+    }
 }
