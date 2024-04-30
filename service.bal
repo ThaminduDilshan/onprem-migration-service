@@ -47,7 +47,7 @@ service / on new http:Listener(9090) {
             });
 
             // Add fixed delay temporarily to simulate the delay in the on prem server.
-            runtime:sleep(1);
+            runtime:sleep(7);
 
             // // Retrieve user from Asgardeo for the given user id.
             // future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
