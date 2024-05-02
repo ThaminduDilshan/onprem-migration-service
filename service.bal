@@ -55,29 +55,30 @@ service / on new http:Listener(9090) {
             // Wait for the response of on prem invocation.
             error? authStatus = check wait authStatusFuture;
 
-            if authStatus is error {
-                log:printInfo(string `${contextId}: Authentication failed with on prem server.`);
+            // if authStatus is error {
+            //     log:printInfo(string `${contextId}: Authentication failed with on prem server.`);
+            //     log:printInfo("TEST: " + authStatus.message());
 
-                if authStatus.message() == "Invalid credentials" {
-                    log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
+            //     if authStatus.message() == "Invalid credentials" {
+            //         log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
 
-                    AuthenticationContext context = {
-                        username: user.username,
-                        status: "FAILED",
-                        message: "Invalid credentials"
-                    };
-                    pushToContext(contextId, context);
-                } else {
-                    log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
+            //         AuthenticationContext context = {
+            //             username: user.username,
+            //             status: "FAIL",
+            //             message: "Invalid credentials"
+            //         };
+            //         pushToContext(contextId, context);
+            //     } else {
+            //         log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
 
-                    AuthenticationContext context = {
-                        username: user.username,
-                        status: "FAILED",
-                        message: "Something went wrong"
-                    };
-                    pushToContext(contextId, context);
-                }
-            }
+            //         AuthenticationContext context = {
+            //             username: user.username,
+            //             status: "FAIL",
+            //             message: "Something went wrong"
+            //         };
+            //         pushToContext(contextId, context);
+            //     }
+            // }
 
             log:printInfo(string `${contextId}: User authenticated with on prem server.`);
 
@@ -104,20 +105,31 @@ service / on new http:Listener(9090) {
             // Add successful authentication context to the map.
             AuthenticationContext context = {
                 username: user.username,
-                status: "SUCCESSFUL",
+                status: "SUCCESS",
                 message: "Authenticated successful"
             };
             pushToContext(contextId, context);
 
         } on fail error err {
-            log:printError(string `Error occurred while authenticating the user: ${user.id}.`, err);
+            if err.message() == "Invalid credentials" {
+                log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
 
-            AuthenticationContext context = {
-                username: user.username,
-                status: "FAILED",
-                message: "Internal server error"
-            };
-            pushToContext(contextId, context);
+                AuthenticationContext context = {
+                    username: user.username,
+                    status: "FAIL",
+                    message: "Invalid credentials"
+                };
+                pushToContext(contextId, context);
+            } else {
+                log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, err);
+
+                AuthenticationContext context = {
+                    username: user.username,
+                    status: "FAIL",
+                    message: "Something went wrong"
+                };
+                pushToContext(contextId, context);
+            }
         }
     }
 
@@ -157,7 +169,7 @@ service / on new http:Listener(9090) {
 
                 return <http:Ok>{
                     body: {
-                        status: "FAILED",
+                        status: "FAIL",
                         message: "Invalid request"
                     }
                 };
@@ -173,6 +185,53 @@ service / on new http:Listener(9090) {
         }
     }
 
+    // This resource is used by the Asgardeo to poll the status of the authentication.
+    // Status can be one of: PENDING, SUCCESS, FAIL.
+    resource function get authentication\-status(string contextId) returns http:Ok|http:BadRequest {
+
+        log:printInfo(string `Received auth status polling query for the context id: ${contextId}.`);
+
+        if (isContextExists(contextId)) {
+            log:printInfo(string `${contextId}: Context found for the status query.`);
+            
+            AuthenticationContext? context = popFromContext(contextId);
+
+            if (context == null) {
+                log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
+
+                return <http:BadRequest>{
+                    body: {
+                        status: "FAIL",
+                        message: "Invalid context id"
+                    }
+                };
+            }
+
+            log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
+
+            if (context.status == "SUCCESS") {
+                log:printInfo(string `${contextId}: Retrieved a successful authentication status.`);
+            } else {
+                log:printInfo(string `${contextId}: Retrieved a failed authentication status.`);
+            }
+
+            return <http:Ok>{
+                body: {
+                    status: context.status,
+                    message: context.message
+                }
+            };
+        } else {
+            log:printInfo(string `${contextId}: Context not found for the status query.`);
+
+            return <http:Ok>{
+                body: {
+                    status: "PENDING"
+                }
+            };
+        }
+    }
+
     resource function get poll\-status(string contextId) returns http:Ok {
 
         log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
@@ -182,7 +241,7 @@ service / on new http:Listener(9090) {
 
             return <http:Ok>{
                 body: {
-                    status: "COMPLETED"
+                    status: "SUCCESS"
                 }
             };
         } else {
