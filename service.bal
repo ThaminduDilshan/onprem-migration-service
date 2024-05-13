@@ -185,54 +185,7 @@ service / on new http:Listener(9090) {
         }
     }
 
-    // This resource is used by the Asgardeo to poll the status of the authentication.
-    // Status can be one of: PENDING, SUCCESS, FAIL.
-    resource function get authentication\-status(string contextId) returns http:Ok|http:BadRequest {
-
-        log:printInfo(string `Received auth status polling query for the context id: ${contextId}.`);
-
-        if (isContextExists(contextId)) {
-            log:printInfo(string `${contextId}: Context found for the status query.`);
-            
-            AuthenticationContext? context = popFromContext(contextId);
-
-            if (context == null) {
-                log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
-
-                return <http:BadRequest>{
-                    body: {
-                        status: "FAIL",
-                        message: "Invalid context id"
-                    }
-                };
-            }
-
-            log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
-
-            if (context.status == "SUCCESS") {
-                log:printInfo(string `${contextId}: Retrieved a successful authentication status.`);
-            } else {
-                log:printInfo(string `${contextId}: Retrieved a failed authentication status.`);
-            }
-
-            return <http:Ok>{
-                body: {
-                    status: context.status,
-                    message: context.message
-                }
-            };
-        } else {
-            log:printInfo(string `${contextId}: Context not found for the status query.`);
-
-            return <http:Ok>{
-                body: {
-                    status: "PENDING"
-                }
-            };
-        }
-    }
-
-    resource function get poll\-status(string contextId) returns http:Ok {
+    resource function get authentication\-status(string contextId) returns http:Ok {
 
         log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
 
@@ -241,7 +194,7 @@ service / on new http:Listener(9090) {
 
             return <http:Ok>{
                 body: {
-                    status: "SUCCESS"
+                    status: "COMPLETE"
                 }
             };
         } else {
