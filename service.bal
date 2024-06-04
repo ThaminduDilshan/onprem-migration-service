@@ -46,60 +46,59 @@ service / on new http:Listener(9090) {
                 }
             });
 
-            // Add fixed delay temporarily to simulate the delay in the on prem server.
-            runtime:sleep(7);
+            // Add fixed delay temporarily to simulate a delay in the on prem server.
+            runtime:sleep(5);
 
-            // // Retrieve user from Asgardeo for the given user id.
-            // future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
+            // Retrieve user from Asgardeo for the given user id.
+            future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
 
             // Wait for the response of on prem invocation.
             error? authStatus = check wait authStatusFuture;
 
-            // if authStatus is error {
-            //     log:printInfo(string `${contextId}: Authentication failed with on prem server.`);
-            //     log:printInfo("TEST: " + authStatus.message());
+            if authStatus is error {
+                log:printInfo(string `${contextId}: Authentication failed with on prem server.`);
 
-            //     if authStatus.message() == "Invalid credentials" {
-            //         log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
+                if authStatus.message() == "Invalid credentials" {
+                    log:printInfo(string `${contextId}: Invalid credentials provided for the user: ${user.id}.`);
 
-            //         AuthenticationContext context = {
-            //             username: user.username,
-            //             status: "FAIL",
-            //             message: "Invalid credentials"
-            //         };
-            //         pushToContext(contextId, context);
-            //     } else {
-            //         log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
+                    AuthenticationContext context = {
+                        username: user.username,
+                        status: "FAIL",
+                        message: "Invalid credentials"
+                    };
+                    pushToContext(contextId, context);
+                } else {
+                    log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
 
-            //         AuthenticationContext context = {
-            //             username: user.username,
-            //             status: "FAIL",
-            //             message: "Something went wrong"
-            //         };
-            //         pushToContext(contextId, context);
-            //     }
-            // }
+                    AuthenticationContext context = {
+                        username: user.username,
+                        status: "FAIL",
+                        message: "Something went wrong"
+                    };
+                    pushToContext(contextId, context);
+                }
+            }
 
             log:printInfo(string `${contextId}: User authenticated with on prem server.`);
 
-            // // Wait for the response of Asgardeo invocation.
-            // AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
-            // log:printInfo(string `${contextId}: User retrieved from Asgardeo.`);
+            // Wait for the response of Asgardeo invocation.
+            AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
+            log:printInfo(string `${contextId}: User retrieved from Asgardeo.`);
 
-            // if asgardeoUser is error {
-            //     log:printInfo(string `${contextId}: Error occurred while retrieving user from Asgardeo.`, asgardeoUser);
+            if asgardeoUser is error {
+                log:printInfo(string `${contextId}: Error occurred while retrieving user from Asgardeo.`, asgardeoUser);
 
-            //     fail error("Something went wrong.");
-            // }
+                fail error("Something went wrong.");
+            }
 
-            // // Validate the username.
-            // if asgardeoUser.username !== user.username {
-            //     log:printInfo(string `${contextId}: Invalid username provided for the user: ${user.id}.`);
+            // Validate the username.
+            if asgardeoUser.username !== user.username {
+                log:printInfo(string `${contextId}: Invalid username provided for the user: ${user.id}.`);
 
-            //     fail error("Invalid username");
-            // }
+                fail error("Invalid credentials");
+            }
 
-            // log:printInfo(string `${contextId}: Username validated successfully.`);
+            log:printInfo(string `${contextId}: Username validated successfully.`);
             log:printInfo(string `${contextId}: On prem authentication successful for the user: ${user.id}.`);
 
             // Add successful authentication context to the map.
