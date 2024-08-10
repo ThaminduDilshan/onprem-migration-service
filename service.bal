@@ -1,5 +1,4 @@
 import ballerina/http;
-import ballerina/lang.runtime;
 import ballerina/log;
 import ballerina/uuid;
 
@@ -36,7 +35,8 @@ service / on new http:Listener(9090) {
 
         do {
             // Create future to authenticate user with the on prem server.
-            future<error?> authStatusFuture = start authenticateUser(user.cloneReadOnly());
+            // future<error?> authStatusFuture = start authenticateUser(user.cloneReadOnly());
+            future<error?> authStatusFuture = start authenticateUserSim(user.cloneReadOnly());
 
             // Return request received response to Asgardeo.
             check caller->respond(<http:Ok>{
@@ -46,8 +46,8 @@ service / on new http:Listener(9090) {
                 }
             });
 
-            // Add fixed delay temporarily to simulate a delay in the on prem server.
-            runtime:sleep(5);
+            // // Add fixed delay temporarily to simulate a delay in the on prem server.
+            // runtime:sleep(5);
 
             // Retrieve user from Asgardeo for the given user id.
             future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
@@ -100,6 +100,8 @@ service / on new http:Listener(9090) {
 
             log:printInfo(string `${contextId}: Username validated successfully.`);
             log:printInfo(string `${contextId}: On prem authentication successful for the user: ${user.id}.`);
+
+            // TODO: Cache impl.
 
             // Add successful authentication context to the map.
             AuthenticationContext context = {

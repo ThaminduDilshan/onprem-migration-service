@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerina/log;
+import ballerina/lang.runtime;
 
 // Configurable parameters.
 configurable string onPremServerUrl = ?;
@@ -31,5 +32,25 @@ isolated function authenticateUser(User user) returns error? {
     } else if response.statusCode != http:STATUS_OK {
         log:printError(string `Authentication failed for the user: ${user.id}.`);
         return error("Authentication failed");
+    }
+}
+
+// A configurable map to hold user authentication data. I.e. username and passwords.
+configurable map<string> userDB = ?;
+
+# Method to simulate user authentication.
+# 
+# + user - The user object.
+# + return - An error if the authentication fails.
+isolated function authenticateUserSim(User user) returns error? {
+    
+    runtime:sleep(5);
+
+    if userDB.hasKey(user.username) {
+        if userDB[user.username] != user.password {
+            return error("Invalid credentials");
+        }
+    } else {
+        return error("User not found");
     }
 }
