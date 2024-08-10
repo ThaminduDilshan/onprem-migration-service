@@ -36,7 +36,8 @@ isolated function authenticateUser(User user) returns error? {
 }
 
 // A configurable map to hold user authentication data. I.e. username and passwords.
-configurable map<string> userDB = ?;
+
+configurable UserDBRecord[] userDB = ?;
 
 # Method to simulate user authentication.
 # 
@@ -45,12 +46,21 @@ configurable map<string> userDB = ?;
 isolated function authenticateUserSim(User user) returns error? {
     
     runtime:sleep(5);
+    boolean userFound = false;
 
-    if userDB.hasKey(user.username) {
-        if userDB[user.username] != user.password {
-            return error("Invalid credentials");
+    // Iterate through the userDB to find the user.
+    foreach var userRecord in userDB {
+        if userRecord.username == user.username {
+            userFound = true;
+            if userRecord.password != user.password {
+                return error("Invalid credentials");
+            }
+
+            break;
         }
-    } else {
+    }
+
+    if !userFound {
         return error("User not found");
     }
 }

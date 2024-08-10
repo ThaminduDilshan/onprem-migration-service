@@ -32,3 +32,8 @@ type AuthenticationStatusRequest record {|
     readonly string contextId;
     readonly string username;
 |};
+
+type UserDBRecord record {|
+    string username;
+    string password;
+|};
