@@ -37,3 +37,11 @@ type UserDBRecord record {|
     string username;
     string password;
 |};
+
+type RedisConfig record {|
+    string host;
+    int port;
+    string username?;
+    string password?;
+    int cacheExpiryTime = 20;   // In seconds.
+|};
