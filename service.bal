@@ -6,28 +6,28 @@ import ballerina/uuid;
 // In memory map implementation.
 //
 
-// isolated map<AuthenticationContext> userAuthContextMap = {};
+isolated map<AuthenticationContext> userAuthContextMap = {};
 
-// isolated function pushToContext(string contextId, AuthenticationContext context) {
+isolated function pushToContext(string contextId, AuthenticationContext context) {
 
-//     lock {
-//         userAuthContextMap[contextId] = context;
-//     }
-// }
+    lock {
+        userAuthContextMap[contextId] = context;
+    }
+}
 
-// isolated function isContextExists(string contextId) returns boolean {
+isolated function isContextExists(string contextId) returns boolean {
 
-//     lock {
-//         return userAuthContextMap.hasKey(contextId);
-//     }
-// }
+    lock {
+        return userAuthContextMap.hasKey(contextId);
+    }
+}
 
-// isolated function popFromContext(string contextId) returns AuthenticationContext {
+isolated function popFromContext(string contextId) returns AuthenticationContext {
 
-//     lock {
-//         return userAuthContextMap.remove(contextId);
-//     }
-// }
+    lock {
+        return userAuthContextMap.remove(contextId);
+    }
+}
 
 service / on new http:Listener(9090) {
 
@@ -71,11 +71,11 @@ service / on new http:Listener(9090) {
                         message: "Invalid credentials"
                     };
                     
-                    // pushToContext(contextId, context);
-                    error? response = addContextToCache(contextId, context);
-                    if response is error {
-                        log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
-                    }
+                    pushToContext(contextId, context);
+                    // error? response = addContextToCache(contextId, context);
+                    // if response is error {
+                    //     log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
+                    // }
 
                 } else {
                     log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, authStatus);
@@ -86,11 +86,11 @@ service / on new http:Listener(9090) {
                         message: "Something went wrong"
                     };
 
-                    // pushToContext(contextId, context);
-                    error? response = addContextToCache(contextId, context);
-                    if response is error {
-                        log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
-                    }
+                    pushToContext(contextId, context);
+                    // error? response = addContextToCache(contextId, context);
+                    // if response is error {
+                    //     log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
+                    // }
                 }
             }
 
@@ -125,11 +125,11 @@ service / on new http:Listener(9090) {
                 message: "Authenticated successful"
             };
 
-            // pushToContext(contextId, context);
-            error? response = addContextToCache(contextId, context);
-            if response is error {
-                log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
-            }
+            pushToContext(contextId, context);
+            // error? response = addContextToCache(contextId, context);
+            // if response is error {
+            //     log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
+            // }
 
         } on fail error err {
             if err.message() == "Invalid credentials" {
@@ -141,11 +141,11 @@ service / on new http:Listener(9090) {
                     message: "Invalid credentials"
                 };
 
-                // pushToContext(contextId, context);
-                error? response = addContextToCache(contextId, context);
-                if response is error {
-                    log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
-                }
+                pushToContext(contextId, context);
+                // error? response = addContextToCache(contextId, context);
+                // if response is error {
+                //     log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
+                // }
             } else {
                 log:printError(string `${contextId}: Error occurred while authenticating the user: ${user.id}.`, err);
 
@@ -155,17 +155,73 @@ service / on new http:Listener(9090) {
                     message: "Something went wrong"
                 };
 
-                // pushToContext(contextId, context);
-                error? response = addContextToCache(contextId, context);
-                if response is error {
-                    log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
-                }
+                pushToContext(contextId, context);
+                // error? response = addContextToCache(contextId, context);
+                // if response is error {
+                //     log:printError(string `${contextId}: Error occurred while adding context to the cache.`, response);
+                // }
             }
         }
     }
 
     //
     // In memory map implementation.
+    //
+
+    resource function post authentication\-status(AuthenticationStatusRequest authStatus) returns http:Ok|http:BadRequest {
+
+        string contextId = authStatus.contextId;
+        string username = authStatus.username;
+
+        log:printInfo(string `Received authentication status check for the context id: ${contextId}.`);
+
+        if (isContextExists(contextId)) {
+            AuthenticationContext? context = popFromContext(contextId);
+
+            if (context == null) {
+                log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
+
+                return <http:BadRequest>{
+                    body: {
+                        message: "Invalid context id"
+                    }
+                };
+            }
+
+            log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
+
+            if (context.username == username) {
+                log:printInfo(string `${contextId}: Username validated successfully.`);
+
+                return <http:Ok>{
+                    body: {
+                        status: context.status,
+                        message: context.message
+                    }
+                };
+            } else {
+                log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
+
+                return <http:Ok>{
+                    body: {
+                        status: "FAIL",
+                        message: "Invalid request"
+                    }
+                };
+            }
+        } else {
+            log:printInfo(string `Authentication status not found for the context id: ${contextId}.`);
+
+            return <http:BadRequest>{
+                body: {
+                    message: "Invalid context id"
+                }
+            };
+        }
+    }
+
+    //
+    // Redis cache implementation.
     //
 
     // resource function post authentication\-status(AuthenticationStatusRequest authStatus) returns http:Ok|http:BadRequest {
@@ -175,41 +231,19 @@ service / on new http:Listener(9090) {
 
     //     log:printInfo(string `Received authentication status check for the context id: ${contextId}.`);
 
-    //     if (isContextExists(contextId)) {
-    //         AuthenticationContext? context = popFromContext(contextId);
+    //     AuthenticationContext|null|error context = getContextFromCache(contextId);
 
-    //         if (context == null) {
-    //             log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status. Context not found.`);
+    //     if context is error {
+    //         log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status.`, context);
 
-    //             return <http:BadRequest>{
-    //                 body: {
-    //                     message: "Invalid context id"
-    //                 }
-    //             };
-    //         }
+    //         return <http:BadRequest>{
+    //             body: {
+    //                 message: "Something went wrong"
+    //             }
+    //         };
+    //     }
 
-    //         log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
-
-    //         if (context.username == username) {
-    //             log:printInfo(string `${contextId}: Username validated successfully.`);
-
-    //             return <http:Ok>{
-    //                 body: {
-    //                     status: context.status,
-    //                     message: context.message
-    //                 }
-    //             };
-    //         } else {
-    //             log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
-
-    //             return <http:Ok>{
-    //                 body: {
-    //                     status: "FAIL",
-    //                     message: "Invalid request"
-    //                 }
-    //             };
-    //         }
-    //     } else {
+    //     if context == null {
     //         log:printInfo(string `Authentication status not found for the context id: ${contextId}.`);
 
     //         return <http:BadRequest>{
@@ -218,109 +252,52 @@ service / on new http:Listener(9090) {
     //             }
     //         };
     //     }
-    // }
 
-    resource function post authentication\-status(AuthenticationStatusRequest authStatus) returns http:Ok|http:BadRequest {
+    //     error? response = removeContextFromCache(contextId);
+    //     if response is error {
+    //         log:printError(string `${contextId}: Error occurred while removing context from the cache.`, response);
+    //     }
 
-        string contextId = authStatus.contextId;
-        string username = authStatus.username;
+    //     log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
 
-        log:printInfo(string `Received authentication status check for the context id: ${contextId}.`);
-
-        AuthenticationContext|null|error context = getContextFromCache(contextId);
-
-        if context is error {
-            log:printInfo(string `${contextId}: Error occurred while retrieving the authentication status.`, context);
-
-            return <http:BadRequest>{
-                body: {
-                    message: "Something went wrong"
-                }
-            };
-        }
-
-        if context == null {
-            log:printInfo(string `Authentication status not found for the context id: ${contextId}.`);
-
-            return <http:BadRequest>{
-                body: {
-                    message: "Invalid context id"
-                }
-            };
-        }
-
-        error? response = removeContextFromCache(contextId);
-        if response is error {
-            log:printError(string `${contextId}: Error occurred while removing context from the cache.`, response);
-        }
-
-        log:printInfo(string `${contextId}: Authentication status retrieved successfully.`);
-
-        if (context.username == username) {
-            log:printInfo(string `${contextId}: Username validated successfully.`);
-
-            return <http:Ok>{
-                body: {
-                    status: context.status,
-                    message: context.message
-                }
-            };
-        } else {
-            log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
-
-            return <http:Ok>{
-                body: {
-                    status: "FAIL",
-                    message: "Invalid request"
-                }
-            };
-        }
-    }
-
-    //
-    // In memory map implementation.
-    //
-
-    // resource function get authentication\-status(string contextId) returns http:Ok {
-
-    //     log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
-
-    //     if (isContextExists(contextId)) {
-    //         log:printInfo(string `${contextId}: Context found for the status query.`);
+    //     if (context.username == username) {
+    //         log:printInfo(string `${contextId}: Username validated successfully.`);
 
     //         return <http:Ok>{
     //             body: {
-    //                 status: "COMPLETE"
+    //                 status: context.status,
+    //                 message: context.message
     //             }
     //         };
     //     } else {
-    //         log:printInfo(string `${contextId}: Context not found for the status query.`);
+    //         log:printInfo(string `${contextId}: Provided username does NOT match with the context username.`);
 
     //         return <http:Ok>{
     //             body: {
-    //                 status: "PENDING"
+    //                 status: "FAIL",
+    //                 message: "Invalid request"
     //             }
     //         };
     //     }
     // }
 
+    //
+    // In memory map implementation.
+    //
+
     resource function get authentication\-status(string contextId) returns http:Ok {
 
         log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
 
-        AuthenticationContext|null|error context = getContextFromCache(contextId);
-
-        if context is error {
-            log:printInfo(string `${contextId}: Error while retrieving the context.`, context);
+        if (isContextExists(contextId)) {
+            log:printInfo(string `${contextId}: Context found for the status query.`);
 
             return <http:Ok>{
                 body: {
-                    status: "PENDING"
+                    status: "COMPLETE"
                 }
             };
-        }
-
-        if context == null {
+        } else {
             log:printInfo(string `${contextId}: Context not found for the status query.`);
 
             return <http:Ok>{
@@ -329,13 +306,44 @@ service / on new http:Listener(9090) {
                 }
             };
         }
-
-        log:printInfo(string `${contextId}: Context found for the status query.`);
-
-        return <http:Ok>{
-            body: {
-                status: "COMPLETE"
-            }
-        };
     }
+
+    //
+    // Redis cache implementation.
+    //
+
+    // resource function get authentication\-status(string contextId) returns http:Ok {
+
+    //     log:printInfo(string `Received status polling query for the context id: ${contextId}.`);
+
+    //     AuthenticationContext|null|error context = getContextFromCache(contextId);
+
+    //     if context is error {
+    //         log:printInfo(string `${contextId}: Error while retrieving the context.`, context);
+
+    //         return <http:Ok>{
+    //             body: {
+    //                 status: "PENDING"
+    //             }
+    //         };
+    //     }
+
+    //     if context == null {
+    //         log:printInfo(string `${contextId}: Context not found for the status query.`);
+
+    //         return <http:Ok>{
+    //             body: {
+    //                 status: "PENDING"
+    //             }
+    //         };
+    //     }
+
+    //     log:printInfo(string `${contextId}: Context found for the status query.`);
+
+    //     return <http:Ok>{
+    //         body: {
+    //             status: "COMPLETE"
+    //         }
+    //     };
+    // }
 }
