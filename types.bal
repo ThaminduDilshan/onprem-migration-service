@@ -4,18 +4,18 @@ type User record {|
     readonly string password;
 |};
 
-type AsgardeoUser record {|
+type IdentityServerUser record {|
     string id;
     string username;
 |};
 
-type AsgardeoAppConfig readonly & record {|
+type IdentityServerAppConfig readonly & record {|
     string tokenUrl;
     string clientId;
     string clientSecret;
 |};
 
-type AsgardeoUserResponse record {|
+type IdentityServerUserResponse record {|
     string id;
     string userName;
     string[] emails;

@@ -2,7 +2,7 @@
 
 # Configurable variables
 FILE_PATH="path/to/csv_file.csv"
-SERVER_BASE_URL="api.asgardeo.io/t/<your_organization>"
+SERVER_BASE_URL="localhost:9443"
 ACCESS_TOKEN="<your_token>"
 
 # Function to execute SCIM API call for each user.
@@ -28,7 +28,7 @@ function invoke_scim_api {
             "givenName": "'"$givenName"'",
             "familyName": "'"$familyName"'"
         },
-        "userName": "DEFAULT/'"$userName"'",
+        "userName": "PRIMARY/'"$userName"'",
         "password": "b0F0DgdorACH5l7",
         "emails": [
             {
@@ -58,7 +58,7 @@ function invoke_scim_api {
     curl --location -k "https://$SERVER_BASE_URL/scim2/Users" \
     --header 'Accept: application/scim+json' \
     --header 'Content-Type: application/scim+json' \
-    --header "Authorization: Bearer $ACCESS_TOKEN" \
+    --header "Authorization: Basic $ACCESS_TOKEN" \
     --data-raw "$payload"
 
     echo ""

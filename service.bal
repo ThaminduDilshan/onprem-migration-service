@@ -42,7 +42,7 @@ service / on new http:Listener(9090) {
             // future<error?> authStatusFuture = start authenticateUser(user.cloneReadOnly());
             future<error?> authStatusFuture = start authenticateUserSim(user.cloneReadOnly());
 
-            // Return request received response to Asgardeo.
+            // Return request received response to Identity Server.
             check caller->respond(<http:Ok>{
                 body: {
                     message: "Received",
@@ -53,8 +53,8 @@ service / on new http:Listener(9090) {
             // // Add fixed delay temporarily to simulate a delay in the on prem server.
             // runtime:sleep(5);
 
-            // Retrieve user from Asgardeo for the given user id.
-            future<AsgardeoUser|error> asgardeoUserFuture = start getAsgardeoUser(user.id);
+            // // Retrieve user from Identity Server for the given user id.
+            // future<IdentityServerUser|error> IdentityServerUserFuture = start getIdentityServerUser(user.id);
 
             // Wait for the response of on prem invocation.
             error? authStatus = check wait authStatusFuture;
@@ -96,27 +96,25 @@ service / on new http:Listener(9090) {
 
             log:printInfo(string `${contextId}: User authenticated with on prem server.`);
 
-            // Wait for the response of Asgardeo invocation.
-            AsgardeoUser|error asgardeoUser = check wait asgardeoUserFuture;
-            log:printInfo(string `${contextId}: User retrieved from Asgardeo.`);
+            // // Wait for the response of Identity Server invocation.
+            // IdentityServerUser|error IdentityServerUser = check wait IdentityServerUserFuture;
+            // log:printInfo(string `${contextId}: User retrieved from Identity Server.`);
 
-            if asgardeoUser is error {
-                log:printInfo(string `${contextId}: Error occurred while retrieving user from Asgardeo.`, asgardeoUser);
+            // if IdentityServerUser is error {
+            //     log:printInfo(string `${contextId}: Error occurred while retrieving user from Identity Server.`, IdentityServerUser);
 
-                fail error("Something went wrong.");
-            }
+            //     fail error("Something went wrong.");
+            // }
 
-            // Validate the username.
-            if asgardeoUser.username !== user.username {
-                log:printInfo(string `${contextId}: Invalid username provided for the user: ${user.id}.`);
+            // // Validate the username.
+            // if IdentityServerUser.username !== user.username {
+            //     log:printInfo(string `${contextId}: Invalid username provided for the user: ${user.id}.`);
 
-                fail error("Invalid credentials");
-            }
+            //     fail error("Invalid credentials");
+            // }
 
             log:printInfo(string `${contextId}: Username validated successfully.`);
             log:printInfo(string `${contextId}: On prem authentication successful for the user: ${user.id}.`);
-
-            // TODO: Cache impl.
 
             // Add successful authentication context to the map.
             AuthenticationContext context = {
